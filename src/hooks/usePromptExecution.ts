@@ -531,9 +531,41 @@ export function usePromptExecution(config: UsePromptExecutionConfig): UsePromptE
               }
 
               if (data.type === 'assistant' || data.type === 'user') {
+                // 🔧 FIX: 对于 user 类型的 tool_result 消息，提取 Gemini functionResponse 格式的实际输出
+                let message = data.message;
+
+                if (data.type === 'user' && message?.content) {
+                  const content = Array.isArray(message.content) ? message.content : [message.content];
+                  const processedContent = content.map((item: any) => {
+                    // 检查是否是 tool_result
+                    if (item.type === 'tool_result') {
+                      let resultContent = item.content;
+
+                      // 尝试提取 Gemini functionResponse 格式: [{functionResponse: {response: {output: "..."}}}]
+                      if (Array.isArray(item.content)) {
+                        const firstResult = item.content[0];
+                        if (firstResult?.functionResponse?.response?.output !== undefined) {
+                          resultContent = firstResult.functionResponse.response.output;
+                        }
+                      }
+
+                      return {
+                        ...item,
+                        content: resultContent
+                      };
+                    }
+                    return item;
+                  });
+
+                  message = {
+                    ...message,
+                    content: processedContent
+                  };
+                }
+
                 return {
                   type: data.type,
-                  message: data.message,
+                  message,
                   timestamp: data.timestamp,
                   engine: 'gemini' as const
                 };
