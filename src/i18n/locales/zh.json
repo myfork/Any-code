@@ -1016,7 +1016,18 @@
     "copyCommand": "复制命令",
     "openWithDefault": "用系统默认应用打开",
     "collapseResult": "收起结果",
-    "expandAll": "展开全部"
+    "expandAll": "展开全部",
+    "itemsCount": "{{count}} 项",
+    "emptyDirectory": "空目录",
+    "directories": "目录",
+    "files": "文件",
+    "emptyOrUnparsable": "目录内容为空或无法解析",
+    "listingDirectory": "正在列示目录",
+    "searching": "搜索中...",
+    "path": "路径",
+    "include": "包含",
+    "exclude": "排除",
+    "todoList": "任务列表"
   },
   "usageDashboard": {
     "today": "今日",

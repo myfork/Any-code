@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Search, FolderOpen, FilePlus, X, ChevronUp, ChevronDown } from "lucide-react";
 import { GrepResults } from "./components/GrepResults";
 
@@ -37,6 +38,7 @@ export const GrepWidget: React.FC<GrepWidgetProps> = ({
   exclude,
   result,
 }) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
 
   // 提取结果内容
@@ -84,7 +86,7 @@ export const GrepWidget: React.FC<GrepWidgetProps> = ({
             {!result && (
               <div className="flex items-center gap-1 text-muted-foreground">
                 <div className="h-1.5 w-1.5 bg-blue-500 rounded-full animate-pulse" />
-                <span>搜索中...</span>
+                <span>{t('widget.searching')}</span>
               </div>
             )}
             {/* 这里可以添加更多统计信息如果需要 */}
@@ -129,7 +131,7 @@ export const GrepWidget: React.FC<GrepWidgetProps> = ({
                     <div className="flex items-center gap-2 flex-1">
                       <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
                         <FilePlus className="h-3.5 w-3.5" />
-                        <span className="font-medium">包含</span>
+                        <span className="font-medium">{t('widget.include')}</span>
                       </div>
                       <code className="font-mono bg-green-500/10 px-2 py-0.5 rounded text-green-700 dark:text-green-300">
                         {include}
@@ -141,7 +143,7 @@ export const GrepWidget: React.FC<GrepWidgetProps> = ({
                     <div className="flex items-center gap-2 flex-1">
                       <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
                         <X className="h-3.5 w-3.5" />
-                        <span className="font-medium">排除</span>
+                        <span className="font-medium">{t('widget.exclude')}</span>
                       </div>
                       <code className="font-mono bg-red-500/10 px-2 py-0.5 rounded text-red-700 dark:text-red-300">
                         {exclude}

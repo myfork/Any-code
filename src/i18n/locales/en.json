@@ -1016,7 +1016,18 @@
     "copyCommand": "Copy Command",
     "openWithDefault": "Open with default application",
     "collapseResult": "Collapse Result",
-    "expandAll": "Expand All"
+    "expandAll": "Expand All",
+    "itemsCount": "{{count}} items",
+    "emptyDirectory": "Empty directory",
+    "directories": "directories",
+    "files": "files",
+    "emptyOrUnparsable": "Directory content is empty or unparsable",
+    "listingDirectory": "Listing directory",
+    "searching": "Searching...",
+    "path": "Path",
+    "include": "Include",
+    "exclude": "Exclude",
+    "todoList": "Todo List"
   },
   "usageDashboard": {
     "today": "Today",
