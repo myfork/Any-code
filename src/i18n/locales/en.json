@@ -1093,6 +1093,20 @@
     "confirmDelete": "Confirm Delete",
     "projectLabel": "Project {{projectName}}, {{sessionCount}} sessions, created {{createdAt}}"
   },
+  "projectSettings": {
+    "title": "Project Settings",
+    "projectHooks": "Project Hooks",
+    "localHooks": "Local Hooks",
+    "projectHooksDescription": "These hooks apply to all users on this project. They are stored in",
+    "localHooksDescription": "These hooks only apply to your machine. They are stored in",
+    "shouldCommit": "and should be committed to version control.",
+    "shouldNotCommit": "and should not be committed to version control.",
+    "localFileNotInGitignore": "Local settings file not in .gitignore",
+    "gitignoreRecommendation": "Recommend adding .claude/settings.local.json to .gitignore to avoid committing machine-specific configuration.",
+    "addToGitignore": "Add to .gitignore",
+    "addedToGitignore": "Added to .gitignore",
+    "updateGitignoreFailed": "Failed to update .gitignore"
+  },
   "mcpImport": {
     "invalidJson": "Invalid JSON format. Please check the input format.",
     "enterServerName": "Please enter a name for this server:",

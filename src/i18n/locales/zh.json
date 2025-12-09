@@ -1125,6 +1125,20 @@
     "confirmDelete": "确认删除",
     "projectLabel": "项目 {{projectName}}，包含 {{sessionCount}} 个会话，创建于 {{createdAt}}"
   },
+  "projectSettings": {
+    "title": "项目设置",
+    "projectHooks": "项目钩子",
+    "localHooks": "本地钩子",
+    "projectHooksDescription": "这些钩子适用于此项目上的所有用户。它们存储在",
+    "localHooksDescription": "这些钩子只适用于您的机器。它们存储在",
+    "shouldCommit": "中，应该提交到版本控制。",
+    "shouldNotCommit": "中，不应该提交到版本控制。",
+    "localFileNotInGitignore": "本地设置文件未在 .gitignore 中",
+    "gitignoreRecommendation": "建议将 .claude/settings.local.json 添加到 .gitignore 以避免提交机器特定的配置。",
+    "addToGitignore": "添加到 .gitignore",
+    "addedToGitignore": "已添加到 .gitignore",
+    "updateGitignoreFailed": "更新 .gitignore 失败"
+  },
   "mcpImport": {
     "invalidJson": "无效的 JSON 格式。请检查输入格式。",
     "enterServerName": "请输入此服务器的名称：",

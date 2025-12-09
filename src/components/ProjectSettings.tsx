@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Toast, ToastContainer } from '@/components/ui/toast';
 import type { Project } from '@/lib/api';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface ProjectSettingsProps {
   project: Project;
@@ -31,6 +32,7 @@ export const ProjectSettings: React.FC<ProjectSettingsProps> = ({
   onBack,
   className
 }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('project');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
@@ -68,11 +70,11 @@ export const ProjectSettings: React.FC<ProjectSettingsProps> = ({
         content += '\n# Claude local settings (machine-specific)\n.claude/settings.local.json\n';
         await api.saveClaudeMdFile(gitignorePath, content);
         setGitIgnoreLocal(true);
-        setToast({ message: '已添加到 .gitignore', type: 'success' });
+        setToast({ message: t('projectSettings.addedToGitignore'), type: 'success' });
       }
     } catch (err) {
       console.error('Failed to update .gitignore:', err);
-      setToast({ message: '更新 .gitignore 失败', type: 'error' });
+      setToast({ message: t('projectSettings.updateGitignoreFailed'), type: 'error' });
     }
   };
 
@@ -84,11 +86,11 @@ export const ProjectSettings: React.FC<ProjectSettingsProps> = ({
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm" onClick={onBack}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              返回
+              {t('buttons.back')}
             </Button>
             <div className="flex items-center gap-2">
               <Settings className="h-5 w-5 text-muted-foreground" />
-              <h2 className="text-xl font-semibold">项目设置</h2>
+              <h2 className="text-xl font-semibold">{t('projectSettings.title')}</h2>
             </div>
           </div>
         </div>
@@ -108,11 +110,11 @@ export const ProjectSettings: React.FC<ProjectSettingsProps> = ({
             <TabsList className="mb-6">
               <TabsTrigger value="project" className="gap-2">
                 <GitBranch className="h-4 w-4" />
-                项目钩子
+                {t('projectSettings.projectHooks')}
               </TabsTrigger>
               <TabsTrigger value="local" className="gap-2">
                 <Shield className="h-4 w-4" />
-                本地钩子
+                {t('projectSettings.localHooks')}
               </TabsTrigger>
             </TabsList>
 
@@ -120,11 +122,11 @@ export const ProjectSettings: React.FC<ProjectSettingsProps> = ({
               <Card className="p-6">
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-lg font-semibold mb-2">项目钩子</h3>
+                    <h3 className="text-lg font-semibold mb-2">{t('projectSettings.projectHooks')}</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      这些钩子适用于此项目上的所有用户。它们存储在
+                      {t('projectSettings.projectHooksDescription')}
                       <code className="mx-1 px-2 py-1 bg-muted rounded text-xs">.claude/settings.json</code>
-                      中，应该提交到版本控制。
+                      {t('projectSettings.shouldCommit')}
                     </p>
                   </div>
                   
@@ -140,19 +142,19 @@ export const ProjectSettings: React.FC<ProjectSettingsProps> = ({
               <Card className="p-6">
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-lg font-semibold mb-2">本地钩子</h3>
+                    <h3 className="text-lg font-semibold mb-2">{t('projectSettings.localHooks')}</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      这些钩子只适用于您的机器。它们存储在
+                      {t('projectSettings.localHooksDescription')}
                       <code className="mx-1 px-2 py-1 bg-muted rounded text-xs">.claude/settings.local.json</code>
-                      中，不应该提交到版本控制。
+                      {t('projectSettings.shouldNotCommit')}
                     </p>
-                    
+
                     {!gitIgnoreLocal && (
                       <div className="flex items-center gap-4 p-3 bg-yellow-500/10 rounded-md">
                         <AlertTriangle className="h-5 w-5 text-yellow-600" />
                         <div className="flex-1">
                           <p className="text-sm text-yellow-600">
-                            本地设置文件未在 .gitignore 中
+                            {t('projectSettings.localFileNotInGitignore')}
                           </p>
                         </div>
                         <Button
@@ -160,7 +162,7 @@ export const ProjectSettings: React.FC<ProjectSettingsProps> = ({
                           variant="outline"
                           onClick={addToGitIgnore}
                         >
-                          添加到 .gitignore
+                          {t('projectSettings.addToGitignore')}
                         </Button>
                       </div>
                     )}
