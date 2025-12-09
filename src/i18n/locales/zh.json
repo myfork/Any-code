@@ -990,7 +990,10 @@
     "questionsCount": "({count} 个问题)",
     "multipleChoice": "多选",
     "singleChoice": "单选",
-    "selected": "已选择"
+    "selected": "已选择",
+    "failed": "失败",
+    "completed": "完成",
+    "running": "运行中"
   },
   "usageDashboard": {
     "today": "今日",

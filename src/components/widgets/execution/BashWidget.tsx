@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Terminal, ChevronUp, ChevronDown, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,7 @@ export const BashWidget: React.FC<BashWidgetProps> = ({
   description,
   result,
 }) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
 
   // 提取结果内容
@@ -57,7 +59,7 @@ export const BashWidget: React.FC<BashWidgetProps> = ({
       : <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
     : <Loader2 className="h-3.5 w-3.5 text-blue-500 animate-spin" />;
 
-  const statusText = result ? (isError ? '失败' : '完成') : '运行中';
+  const statusText = result ? (isError ? t('widget.failed') : t('widget.completed')) : t('widget.running');
   const statusColor = result ? (isError ? 'text-red-500' : 'text-green-500') : 'text-blue-500';
 
   return (
@@ -123,7 +125,7 @@ export const BashWidget: React.FC<BashWidgetProps> = ({
                 ? "text-red-600 dark:text-red-400"
                 : "text-foreground/80"
             )} style={{ fontSize: '0.8rem', lineHeight: '1.5' }}>
-              {resultContent || (isError ? "命令执行失败" : "命令执行完成，无输出")}
+              {resultContent || (isError ? t('widget.commandFailed') : t('widget.commandCompleted'))}
             </div>
           </div>
         </div>

@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Terminal, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ export const BashOutputWidget: React.FC<BashOutputWidgetProps> = ({
   bash_id,
   result,
 }) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
 
   // 提取结果内容
@@ -88,7 +90,7 @@ export const BashOutputWidget: React.FC<BashOutputWidgetProps> = ({
               ? "text-red-600 dark:text-red-400"
               : "text-foreground/80"
           )} style={{ fontSize: '0.8rem', lineHeight: '1.5' }}>
-            {cleanContent || (isError ? "获取输出失败" : "输出为空")}
+            {cleanContent || (isError ? t('widget.getOutputFailed') : t('widget.emptyOutput'))}
           </div>
         </div>
       )}

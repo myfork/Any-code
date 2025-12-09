@@ -990,7 +990,10 @@
     "questionsCount": "({count} questions)",
     "multipleChoice": "Multiple Choice",
     "singleChoice": "Single Choice",
-    "selected": "Selected"
+    "selected": "Selected",
+    "failed": "Failed",
+    "completed": "Completed",
+    "running": "Running"
   },
   "usageDashboard": {
     "today": "Today",
