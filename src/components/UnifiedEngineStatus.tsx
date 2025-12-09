@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Loader2, AlertCircle, Sparkles, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 import { ClaudeIcon } from "@/components/icons/ClaudeIcon";
 import { CodexIcon } from "@/components/icons/CodexIcon";
+import { GeminiIcon } from "@/components/icons/GeminiIcon";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import {
@@ -82,14 +83,14 @@ export const UnifiedEngineStatus: React.FC<UnifiedEngineStatusProps> = ({
           icon: CodexIcon, 
           color: 'text-blue-500' 
         },
-        { 
-          type: 'gemini', 
-          isInstalled: geminiInstalled, 
+        {
+          type: 'gemini',
+          isInstalled: geminiInstalled,
           statusText: geminiInstalled ? '已安装' : '未安装',
           version: geminiVersion,
-          label: 'Google Gemini', 
-          icon: Sparkles, 
-          color: 'text-purple-500' 
+          label: 'Google Gemini',
+          icon: GeminiIcon,
+          color: 'text-purple-500'
         },
       ]);
 

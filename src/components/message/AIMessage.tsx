@@ -1,7 +1,8 @@
 import React from "react";
-import { Bot, Sparkles } from "lucide-react";
+import { Bot } from "lucide-react";
 import { ClaudeIcon } from "@/components/icons/ClaudeIcon";
 import { CodexIcon } from "@/components/icons/CodexIcon";
+import { GeminiIcon } from "@/components/icons/GeminiIcon";
 import { MessageBubble } from "./MessageBubble";
 import { MessageContent } from "./MessageContent";
 import { ToolCallsGroup } from "./ToolCallsGroup";
@@ -155,7 +156,7 @@ export const AIMessage: React.FC<AIMessageProps> = ({
   const assistantName = isGeminiMessage ? 'Gemini' : isCodexMessage ? 'Codex' : 'Claude';
   
   // Select icon based on engine
-  const Icon = isGeminiMessage ? Sparkles : isCodexMessage ? CodexIcon : ClaudeIcon;
+  const Icon = isGeminiMessage ? GeminiIcon : isCodexMessage ? CodexIcon : ClaudeIcon;
 
   return (
     <div className={cn("relative group", className)}>
