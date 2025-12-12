@@ -3071,6 +3071,53 @@ export const api = {
     }
   },
 
+  // ============================================================================
+  // Gemini WSL Mode Configuration
+  // ============================================================================
+
+  /**
+   * Gets Gemini WSL mode configuration
+   * @returns Promise resolving to Gemini WSL mode configuration info
+   */
+  async getGeminiWslModeConfig(): Promise<{
+    mode: 'auto' | 'native' | 'wsl';
+    wslDistro: string | null;
+    wslAvailable: boolean;
+    availableDistros: string[];
+    wslEnabled: boolean;
+    wslGeminiPath: string | null;
+    wslGeminiVersion: string | null;
+    nativeAvailable: boolean;
+  }> {
+    try {
+      return await invoke("get_gemini_wsl_mode_config");
+    } catch (error) {
+      console.error("Failed to get Gemini WSL mode config:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Sets Gemini WSL mode configuration
+   * @param mode - The mode to set: 'auto', 'native', or 'wsl'
+   * @param wslDistro - Optional WSL distro name
+   * @returns Promise resolving when config is saved
+   */
+  async setGeminiWslModeConfig(
+    mode: 'auto' | 'native' | 'wsl',
+    wslDistro?: string | null
+  ): Promise<void> {
+    try {
+      await invoke("set_gemini_wsl_mode_config", {
+        mode,
+        wslDistro: wslDistro || null
+      });
+    } catch (error) {
+      console.error("Failed to set Gemini WSL mode config:", error);
+      throw error;
+    }
+  },
+
   /**
    * Get current Codex CLI path（优先自定义，其次自动检测）
    */
