@@ -236,6 +236,12 @@ pub struct WslConfig {
 /// 全局 WSL 配置缓存
 static WSL_CONFIG: OnceLock<WslConfig> = OnceLock::new();
 
+/// Codex WSL 版本缓存
+static CODEX_WSL_VERSION_CACHE: OnceLock<Option<String>> = OnceLock::new();
+
+/// Gemini WSL 版本缓存
+static GEMINI_WSL_VERSION_CACHE: OnceLock<Option<String>> = OnceLock::new();
+
 impl WslConfig {
     /// 自动检测并创建 WSL 配置
     ///
@@ -811,9 +817,21 @@ pub fn check_wsl_codex(_distro: Option<&str>) -> Option<String> {
     None
 }
 
-/// 获取 WSL 内 Codex 的版本
+/// 获取 WSL 内 Codex 的版本（带缓存）
 #[cfg(target_os = "windows")]
 pub fn get_wsl_codex_version(distro: Option<&str>) -> Option<String> {
+    // 使用缓存避免频繁创建 WSL 进程
+    CODEX_WSL_VERSION_CACHE
+        .get_or_init(|| {
+            debug!("[WSL] Fetching Codex version (first time)...");
+            fetch_wsl_codex_version(distro)
+        })
+        .clone()
+}
+
+/// 实际获取 WSL 内 Codex 的版本（内部函数）
+#[cfg(target_os = "windows")]
+fn fetch_wsl_codex_version(distro: Option<&str>) -> Option<String> {
     let mut cmd = Command::new("wsl");
 
     if let Some(d) = distro {
@@ -831,6 +849,7 @@ pub fn get_wsl_codex_version(distro: Option<&str>) -> Option<String> {
         Ok(output) if output.status.success() => {
             let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if !version.is_empty() {
+                debug!("[WSL] Codex version: {}", version);
                 Some(version)
             } else {
                 None
@@ -956,9 +975,21 @@ pub fn check_wsl_gemini(_distro: Option<&str>) -> Option<String> {
     None
 }
 
-/// 获取 WSL 内 Gemini CLI 的版本
+/// 获取 WSL 内 Gemini CLI 的版本（带缓存）
 #[cfg(target_os = "windows")]
 pub fn get_wsl_gemini_version(distro: Option<&str>) -> Option<String> {
+    // 使用缓存避免频繁创建 WSL 进程
+    GEMINI_WSL_VERSION_CACHE
+        .get_or_init(|| {
+            debug!("[WSL] Fetching Gemini version (first time)...");
+            fetch_wsl_gemini_version(distro)
+        })
+        .clone()
+}
+
+/// 实际获取 WSL 内 Gemini CLI 的版本（内部函数）
+#[cfg(target_os = "windows")]
+fn fetch_wsl_gemini_version(distro: Option<&str>) -> Option<String> {
     let mut cmd = Command::new("wsl");
 
     if let Some(d) = distro {
@@ -976,6 +1007,7 @@ pub fn get_wsl_gemini_version(distro: Option<&str>) -> Option<String> {
         Ok(output) if output.status.success() => {
             let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if !version.is_empty() {
+                debug!("[WSL] Gemini version: {}", version);
                 Some(version)
             } else {
                 None
