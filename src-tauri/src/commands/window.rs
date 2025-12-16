@@ -7,6 +7,62 @@ use serde::{Deserialize, Serialize};
  */
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
+/// Set Windows title bar color using DWM API
+#[cfg(target_os = "windows")]
+fn set_titlebar_color_for_window(window: &tauri::WebviewWindow, color: u32) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_CAPTION_COLOR};
+
+    if let Ok(hwnd) = window.hwnd() {
+        let hwnd = HWND(hwnd.0);
+        unsafe {
+            let _ = DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_CAPTION_COLOR,
+                &color as *const u32 as *const _,
+                std::mem::size_of::<u32>() as u32,
+            );
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn set_titlebar_color_for_window(_window: &tauri::WebviewWindow, _color: u32) {
+    // No-op for non-Windows platforms
+}
+
+/// Sets the title bar color for all windows based on the current theme
+///
+/// # Arguments
+/// * `app` - The Tauri app handle
+/// * `is_dark` - Whether dark theme is active
+///
+/// # Returns
+/// * `Result<(), String>` - Success or error message
+#[tauri::command]
+pub async fn set_titlebar_theme(app: AppHandle, is_dark: bool) -> Result<(), String> {
+    // Color values in COLORREF format (0x00BBGGRR)
+    // Dark theme: Medium gray rgb(48, 48, 52) -> 0x00343030
+    // Light theme: Near white rgb(250, 250, 252) -> 0x00FCFAFA
+    let color: u32 = if is_dark {
+        0x00343030 // Dark theme: medium gray
+    } else {
+        0x00FCFAFA // Light theme: near white
+    };
+
+    // Apply to all windows
+    for (_label, window) in app.webview_windows() {
+        set_titlebar_color_for_window(&window, color);
+    }
+
+    log::info!(
+        "[Window] Title bar theme updated to {}",
+        if is_dark { "dark" } else { "light" }
+    );
+
+    Ok(())
+}
+
 /// Parameters for creating a new session window
 #[derive(Debug, Deserialize)]
 pub struct CreateSessionWindowParams {

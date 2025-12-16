@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 type Theme = 'light' | 'dark';
 
@@ -48,6 +49,12 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     // 将主题保存到 localStorage
     // Save theme to localStorage
     localStorage.setItem('theme', theme);
+
+    // 更新 Windows 标题栏颜色以匹配主题
+    // Update Windows title bar color to match theme
+    invoke('set_titlebar_theme', { isDark: theme === 'dark' }).catch((err) => {
+      console.warn('Failed to update titlebar theme:', err);
+    });
   }, [theme]);
 
   const toggleTheme = () => {

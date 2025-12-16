@@ -72,7 +72,7 @@ use commands::translator::{
 use commands::usage::{get_session_stats, get_usage_by_date_range, get_usage_stats};
 use commands::window::{
     broadcast_to_session_windows, close_session_window, create_session_window, emit_to_window,
-    focus_session_window, list_session_windows,
+    focus_session_window, list_session_windows, set_titlebar_theme,
 };
 
 use commands::codex::{
@@ -483,6 +483,7 @@ fn main() {
             focus_session_window,
             emit_to_window,
             broadcast_to_session_windows,
+            set_titlebar_theme,
             // Google Gemini CLI Integration
             execute_gemini,
             cancel_gemini,

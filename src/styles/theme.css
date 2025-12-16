@@ -53,7 +53,7 @@
   --color-border: oklch(0.36 0.005 260);
   --color-border-hover: oklch(0.42 0.006 260);
   --color-input: oklch(0.28 0.003 260);
-  --color-ring: oklch(0.62 0.20 250);
+  --color-ring: oklch(0.50 0.08 260); /* Muted gray-blue for subtle focus indicator */
 
   /* 🌫️ Glassmorphism Variables (Dark) - Medium Gray */
   --glass-border: oklch(0.93 0.003 260 / 0.12);
