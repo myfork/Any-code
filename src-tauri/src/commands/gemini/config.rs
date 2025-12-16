@@ -88,10 +88,31 @@ impl Default for GeminiConfig {
 // Configuration File Operations
 // ============================================================================
 
+/// Check if WSL mode should be used for Gemini configuration
+/// Returns true if WSL is enabled and has a valid config directory
+fn should_use_wsl_config() -> bool {
+    let wsl_runtime = wsl_utils::get_gemini_wsl_runtime();
+    wsl_runtime.enabled && wsl_runtime.gemini_dir_unc.is_some()
+}
+
 /// Get the Gemini configuration directory (~/.gemini)
+/// Supports both Native Windows and WSL modes
+/// When WSL mode is enabled, returns the WSL UNC path (e.g., \\wsl$\Ubuntu\home\user\.gemini)
+/// Otherwise returns the Windows native path (e.g., C:\Users\xxx\.gemini)
 pub fn get_gemini_dir() -> Result<PathBuf, String> {
+    // Check if WSL mode is enabled
+    if should_use_wsl_config() {
+        if let Some(wsl_dir) = wsl_utils::get_wsl_gemini_dir() {
+            log::info!("[Gemini] Using WSL config directory: {:?}", wsl_dir);
+            return Ok(wsl_dir);
+        }
+    }
+
+    // Fall back to native Windows path
     let home = dirs::home_dir().ok_or("Failed to get home directory")?;
-    Ok(home.join(".gemini"))
+    let native_dir = home.join(".gemini");
+    log::debug!("[Gemini] Using native config directory: {:?}", native_dir);
+    Ok(native_dir)
 }
 
 /// Get the Any Code Gemini configuration path

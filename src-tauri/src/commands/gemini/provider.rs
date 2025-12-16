@@ -12,6 +12,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use super::config::get_gemini_dir;
+use crate::commands::wsl_utils;
 
 // ============================================================================
 // Type Definitions
@@ -227,18 +228,29 @@ pub async fn get_current_gemini_provider_config() -> Result<CurrentGeminiProvide
 }
 
 /// Switch to a Gemini provider configuration
+/// Supports both Native Windows and WSL modes
 #[tauri::command]
 pub async fn switch_gemini_provider(config: GeminiProviderConfig) -> Result<String, String> {
     log::info!("[Gemini Provider] Switching to provider: {}", config.name);
+
+    // Check WSL mode
+    let wsl_runtime = wsl_utils::get_gemini_wsl_runtime();
+    let is_wsl_mode = wsl_runtime.enabled && wsl_runtime.gemini_dir_unc.is_some();
+    log::info!("[Gemini Provider] WSL mode: {}", is_wsl_mode);
 
     let gemini_dir = get_gemini_dir()?;
     let env_path = get_gemini_env_path()?;
     let settings_path = get_gemini_settings_path()?;
 
+    log::info!("[Gemini Provider] Config directory: {:?}", gemini_dir);
+    log::info!("[Gemini Provider] Env path: {:?}", env_path);
+    log::info!("[Gemini Provider] Settings path: {:?}", settings_path);
+
     // Ensure config directory exists
     if !gemini_dir.exists() {
+        log::info!("[Gemini Provider] Creating config directory: {:?}", gemini_dir);
         fs::create_dir_all(&gemini_dir)
-            .map_err(|e| format!("Failed to create .gemini directory: {}", e))?;
+            .map_err(|e| format!("Failed to create .gemini directory at {:?}: {}", gemini_dir, e))?;
     }
 
     // Read existing settings to preserve mcpServers and other user configs
@@ -283,7 +295,10 @@ pub async fn switch_gemini_provider(config: GeminiProviderConfig) -> Result<Stri
         "[Gemini Provider] Successfully switched to: {}",
         config.name
     );
-    Ok(format!("成功切换到 Gemini 供应商: {}", config.name))
+
+    // Return success message with mode info
+    let mode_info = if is_wsl_mode { " (WSL)" } else { "" };
+    Ok(format!("成功切换到 Gemini 供应商: {}{}", config.name, mode_info))
 }
 
 /// Add a new Gemini provider configuration
