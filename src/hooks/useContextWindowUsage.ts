@@ -55,7 +55,12 @@ function getUsageCandidate(message: any, engine?: string): any | null {
     }
   }
 
-  const usage = message.usage || message.message?.usage;
+  // Claude Code statusline / hooks may provide a context_window.current_usage snapshot
+  const currentUsage = message?.context_window?.current_usage;
+  if (currentUsage && typeof currentUsage === 'object') return currentUsage;
+
+  // Prefer nested message.usage for Claude (runtime may attach non-snapshot usage on top-level)
+  const usage = message.message?.usage || message.usage;
   if (usage && typeof usage === 'object') return usage;
 
   // Codex: fallback to codexMetadata.usage (when available)
@@ -94,29 +99,58 @@ function extractCurrentUsage(messages: ClaudeStreamMessage[], engine?: string, c
   cacheCreationTokens: number;
   cacheReadTokens: number;
 } | null {
-  // 从后向前遍历，找到最后一条带有 usage 的消息
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i] as any;
-    const usage = getUsageCandidate(message, engine);
-    if (!usage) continue;
+  const isPlausibleSnapshot = (maybeCurrent: number): boolean => {
+    if (maybeCurrent <= 0) return false;
+    if (typeof contextWindowSize !== 'number' || contextWindowSize <= 0) return true;
 
-    const normalized = normalizeUsageForIndicator(usage);
-    // Context Window 只关心“输入 + 缓存”所占用的窗口大小；输出 tokens 不占用上下文窗口。
-    // 某些流式/增量消息可能只携带 output_tokens（或其他非快照字段），此时不应作为 Context Window 的数据源。
-    const maybeCurrent = normalized.inputTokens + normalized.cacheCreationTokens + normalized.cacheReadTokens;
-    if (maybeCurrent <= 0) {
-      continue;
+    // Codex runtime 事件里可能带“累计 total”，严格过滤；Claude/Gemini 稍微放宽以容忍未知/不完整的窗口配置
+    const overflowMultiplier = engine === 'codex' ? 1.1 : 2;
+    return maybeCurrent <= contextWindowSize * overflowMultiplier;
+  };
+
+  const scan = (shouldConsider: (msg: ClaudeStreamMessage) => boolean): {
+    inputTokens: number;
+    outputTokens: number;
+    cacheCreationTokens: number;
+    cacheReadTokens: number;
+  } | null => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i] as any;
+      if (!shouldConsider(message)) continue;
+
+      const usage = getUsageCandidate(message, engine);
+      if (!usage) continue;
+
+      const normalized = normalizeUsageForIndicator(usage);
+      // Context Window 只关心“输入 + 缓存”所占用的窗口大小；输出 tokens 不占用上下文窗口。
+      // 某些流式/增量消息可能只携带 output_tokens（或其他非快照字段），此时不应作为 Context Window 的数据源。
+      const maybeCurrent = normalized.inputTokens + normalized.cacheCreationTokens + normalized.cacheReadTokens;
+      if (!isPlausibleSnapshot(maybeCurrent)) continue;
+      return normalized;
     }
-    // Codex: 忽略明显不可能的“累计 token”值（上下文窗口内 tokens 不应远超窗口大小）
-    if (engine === 'codex' && typeof contextWindowSize === 'number' && contextWindowSize > 0) {
-      if (maybeCurrent > contextWindowSize * 1.1) {
-        continue;
-      }
-    }
-    return normalized;
+    return null;
+  };
+
+  // 优先使用显式 current_usage（语义最明确）
+  const fromExplicitCurrentUsage = scan((m) => Boolean((m as any)?.context_window?.current_usage));
+  if (fromExplicitCurrentUsage) return fromExplicitCurrentUsage;
+
+  // Claude: 优先从 assistant/result 中提取，避免实时流中混入“累计/会话级”usage 的 system 消息污染统计
+  if (engine === 'claude') {
+    const fromClaudeMainFlow = scan((m) => {
+      const t = (m as any)?.type;
+      return t === 'assistant' || t === 'result';
+    });
+    if (fromClaudeMainFlow) return fromClaudeMainFlow;
   }
 
-  return null;
+  // Gemini: usage 快照通常挂在 result 消息上
+  if (engine === 'gemini') {
+    const fromGeminiResult = scan((m) => (m as any)?.type === 'result');
+    if (fromGeminiResult) return fromGeminiResult;
+  }
+
+  return scan(() => true);
 }
 
 /**
@@ -151,6 +185,20 @@ export function useContextWindowUsage(
       for (let i = messages.length - 1; i >= 0; i--) {
         const maybeCtx = (messages[i] as any)?.codexMetadata?.modelContextWindow;
         // 仅在运行时值更大时采用，避免把“可用窗口/阈值”之类的较小值误当作模型总窗口
+        if (typeof maybeCtx === 'number' && maybeCtx > contextWindowSize) {
+          contextWindowSize = maybeCtx;
+          break;
+        }
+      }
+    }
+
+    // Claude/Gemini: prefer runtime-reported context window when available (statusline/hook payloads)
+    if (engine === 'claude' || engine === 'gemini') {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const maybeCtx =
+          (messages[i] as any)?.context_window?.context_window_size ??
+          (messages[i] as any)?.context_window_size;
+
         if (typeof maybeCtx === 'number' && maybeCtx > contextWindowSize) {
           contextWindowSize = maybeCtx;
           break;
