@@ -368,11 +368,12 @@ export function useMessageTranslation(config: UseMessageTranslationConfig): UseM
           }
 
           if (hasCommandOutput) {
+            console.log('[useMessageTranslation] Reclassifying command output to system message');
             processedMessage = {
               ...processedMessage,
-              type: 'system',
+              type: 'system' as const,
               subtype: 'command-output'
-            };
+            } as ClaudeStreamMessage;
           }
         }
 
