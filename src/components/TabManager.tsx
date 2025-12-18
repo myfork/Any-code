@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, MoreHorizontal, MessageSquare, ArrowLeft, ExternalLink } from 'lucide-react';
+import { X, Plus, MoreHorizontal, MessageSquare, ArrowLeft, ExternalLink, Zap, Bot, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
@@ -236,21 +236,38 @@ export const TabManager: React.FC<TabManagerProps> = ({
                         onDragOver={(e) => handleTabDragOver(e, index)}
                         onDrop={(e) => handleTabDrop(e, index)}
                       >
-                        {/* 会话状态指示器 - 极简 */}
-                        <div className="flex-shrink-0">
+                        {/* 引擎图标 + 状态指示 */}
+                        <div className="flex-shrink-0 flex items-center gap-1">
+                          {/* 引擎图标 */}
+                          {tab.session?.engine === 'codex' ? (
+                            <Bot className={cn(
+                              "h-3.5 w-3.5",
+                              tab.isActive ? "text-green-500" : "text-muted-foreground"
+                            )} />
+                          ) : tab.session?.engine === 'gemini' ? (
+                            <Sparkles className={cn(
+                              "h-3.5 w-3.5",
+                              tab.isActive ? "text-blue-500" : "text-muted-foreground"
+                            )} />
+                          ) : (
+                            <Zap className={cn(
+                              "h-3.5 w-3.5",
+                              tab.isActive ? "text-amber-500" : "text-muted-foreground"
+                            )} />
+                          )}
+                          {/* 状态指示器 */}
                           {tab.state === 'streaming' ? (
-                            <motion.div
-                              animate={{ opacity: [1, 0.4, 1] }}
-                              transition={{ duration: 1.5, repeat: Infinity }}
-                              className="h-1.5 w-1.5 bg-success rounded-full"
-                            />
+                            <Loader2 className="h-3 w-3 text-success animate-spin" />
                           ) : tab.hasUnsavedChanges ? (
                             <div className="h-1.5 w-1.5 bg-warning rounded-full" />
                           ) : null}
                         </div>
 
                         {/* 标签页标题 */}
-                        <span className="flex-1 truncate text-sm">
+                        <span className={cn(
+                          "flex-1 truncate text-sm",
+                          tab.isActive && "font-medium"
+                        )}>
                           {tab.title}
                         </span>
 
@@ -293,14 +310,40 @@ export const TabManager: React.FC<TabManagerProps> = ({
                       </motion.div>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-sm">
-                      <div className="space-y-1 text-xs">
-                        <div className="font-medium">{tab.title}</div>
+                      <div className="space-y-1.5 text-xs">
+                        <div className="font-medium flex items-center gap-2">
+                          {tab.title}
+                          {tab.state === 'streaming' && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-success/20 text-success">
+                              运行中
+                            </span>
+                          )}
+                        </div>
+                        {/* 引擎类型 */}
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          {tab.session?.engine === 'codex' ? (
+                            <>
+                              <Bot className="h-3 w-3 text-green-500" />
+                              <span>Codex</span>
+                            </>
+                          ) : tab.session?.engine === 'gemini' ? (
+                            <>
+                              <Sparkles className="h-3 w-3 text-blue-500" />
+                              <span>Gemini</span>
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="h-3 w-3 text-amber-500" />
+                              <span>Claude</span>
+                            </>
+                          )}
+                        </div>
                         {tab.session && (
                           <>
                             <div className="text-muted-foreground">
-                              {t('tabs.sessionId')} {tab.session.id}
+                              {t('tabs.sessionId')} {tab.session.id.slice(0, 8)}...
                             </div>
-                            <div className="text-muted-foreground">
+                            <div className="text-muted-foreground truncate">
                               {t('tabs.project')} {tab.projectPath || tab.session.project_path}
                             </div>
                             <div className="text-muted-foreground">
@@ -309,7 +352,7 @@ export const TabManager: React.FC<TabManagerProps> = ({
                           </>
                         )}
                         {!tab.session && tab.projectPath && (
-                          <div className="text-muted-foreground">
+                          <div className="text-muted-foreground truncate">
                             {t('tabs.project')} {tab.projectPath}
                           </div>
                         )}
