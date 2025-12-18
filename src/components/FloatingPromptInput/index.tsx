@@ -10,6 +10,7 @@ import { usePromptEnhancement } from "./hooks/usePromptEnhancement";
 import { usePromptSuggestion } from "./hooks/usePromptSuggestion";
 import { useDraftPersistence } from "./hooks/useDraftPersistence";
 import { useSlashCommandMenu } from "./hooks/useSlashCommandMenu";
+import { useCustomSlashCommands } from "./hooks/useCustomSlashCommands";
 import { api } from "@/lib/api";
 import { getEnabledProviders } from "@/lib/promptEnhancementService";
 import { inputReducer, initialState } from "./reducer";
@@ -266,6 +267,19 @@ const FloatingPromptInputInner = (
     debounceMs: 600,
   });
 
+  // 🆕 斜杠命令支持 Claude 和 Gemini 引擎（Codex 暂不支持非交互式斜杠命令）
+  const currentEngine = state.executionEngineConfig.engine;
+  const isSlashCommandSupported = currentEngine === 'claude' || currentEngine === 'gemini';
+
+  // 🆕 自定义斜杠命令 Hook - 从后端获取用户和项目命令
+  // Claude: ~/.claude/commands/*.md
+  // Gemini: ~/.gemini/commands/*.toml
+  const { customCommands } = useCustomSlashCommands({
+    projectPath,
+    enabled: isSlashCommandSupported && !state.isExpanded && !disabled,
+    engine: currentEngine,
+  });
+
   // 🆕 斜杠命令菜单 Hook
   const {
     isOpen: showSlashCommandMenu,
@@ -281,7 +295,10 @@ const FloatingPromptInputInner = (
       // 替换当前输入为选中的命令
       dispatch({ type: "SET_PROMPT", payload: command });
     },
-    disabled: state.isExpanded || disabled,
+    customCommands,
+    // Claude 和 Gemini 都支持斜杠命令菜单
+    disabled: !isSlashCommandSupported || state.isExpanded || disabled,
+    engine: currentEngine,
   });
 
   // Persist project context switch
@@ -622,6 +639,7 @@ const FloatingPromptInputInner = (
             onSlashCommandSelect={handleSlashCommandSelect}
             onSlashCommandMenuClose={closeSlashCommandMenu}
             onSlashCommandSelectedIndexChange={setSlashCommandSelectedIndex}
+            customSlashCommands={customCommands}
           />
 
           <ControlBar

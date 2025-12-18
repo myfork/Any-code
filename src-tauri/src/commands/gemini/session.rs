@@ -21,6 +21,21 @@ use crate::claude_binary::detect_binary_for_tool;
 use crate::commands::claude::apply_no_window_async;
 use crate::commands::wsl_utils;
 
+// ============================================================================
+// Slash Command Detection
+// ============================================================================
+
+/// Helper function to check if prompt is a slash command
+/// Slash commands start with '/' and are typically short (like /help, /compact, /clear)
+///
+/// Gemini CLI supports slash commands in non-interactive mode since v0.1.59 (PR #8305)
+/// - Custom commands from ~/.gemini/commands/*.toml
+/// - Custom commands from <project>/.gemini/commands/*.toml
+fn is_slash_command(prompt: &str) -> bool {
+    let trimmed = prompt.trim();
+    trimmed.starts_with('/') && !trimmed.contains('\n') && trimmed.len() < 256
+}
+
 /// 全局 Gemini 安装状态缓存
 /// 避免重复创建 WSL 进程检测安装状态
 static GEMINI_INSTALL_STATUS_CACHE: OnceCell<GeminiInstallStatus> = OnceCell::const_new();
@@ -572,6 +587,9 @@ pub async fn cancel_gemini(
 // ============================================================================
 
 /// Execute a Gemini process and stream output to frontend
+///
+/// 🔥 斜杠命令支持：斜杠命令通过 -p 参数传递（触发命令解析），普通 prompt 通过 stdin 管道传递
+/// 这样既支持斜杠命令，又避免操作系统命令行长度限制（Windows ~8KB, Linux/macOS ~128KB-2MB）
 async fn execute_gemini_process(
     mut cmd: Command,
     project_path: String,
@@ -579,6 +597,24 @@ async fn execute_gemini_process(
     prompt: Option<String>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    // 🔥 关键修复：检测斜杠命令，通过 -p 参数传递以触发命令解析
+    // Gemini CLI 在非交互模式下支持斜杠命令（自 v0.1.59 起，PR #8305）
+    let use_p_flag = prompt
+        .as_ref()
+        .map(|p| is_slash_command(p))
+        .unwrap_or(false);
+
+    if use_p_flag {
+        if let Some(ref prompt_text) = prompt {
+            log::info!(
+                "Detected slash command, using -p flag: {}",
+                prompt_text.trim()
+            );
+            cmd.arg("-p");
+            cmd.arg(prompt_text);
+        }
+    }
+
     // Setup stdio - use piped stdin to pass prompt (supports multiline content)
     cmd.stdin(Stdio::piped());
     cmd.stdout(Stdio::piped());
@@ -592,25 +628,33 @@ async fn execute_gemini_process(
         .spawn()
         .map_err(|e| format!("Failed to spawn gemini: {}", e))?;
 
-    // FIX: Write prompt to stdin if provided
-    // This avoids command line length limits and special character issues (especially multiline content)
-    if let Some(prompt_text) = prompt {
-        if let Some(mut stdin) = child.stdin.take() {
-            use tokio::io::AsyncWriteExt;
+    // 🔥 修复：只有非斜杠命令才通过 stdin 传递
+    // 斜杠命令已经通过 -p 参数传递，避免重复
+    if !use_p_flag {
+        if let Some(prompt_text) = prompt {
+            if let Some(mut stdin) = child.stdin.take() {
+                use tokio::io::AsyncWriteExt;
 
-            log::debug!("Writing prompt to stdin ({} bytes)", prompt_text.len());
+                log::debug!("Writing prompt to stdin ({} bytes)", prompt_text.len());
 
-            if let Err(e) = stdin.write_all(prompt_text.as_bytes()).await {
-                log::error!("Failed to write prompt to stdin: {}", e);
-                return Err(format!("Failed to write prompt to stdin: {}", e));
+                if let Err(e) = stdin.write_all(prompt_text.as_bytes()).await {
+                    log::error!("Failed to write prompt to stdin: {}", e);
+                    return Err(format!("Failed to write prompt to stdin: {}", e));
+                }
+
+                // Close stdin to signal end of input
+                drop(stdin);
+                log::debug!("Stdin closed successfully");
+            } else {
+                log::error!("Failed to get stdin handle");
+                return Err("Failed to get stdin handle".to_string());
             }
-
-            // Close stdin to signal end of input
+        }
+    } else {
+        // 斜杠命令模式：关闭 stdin
+        if let Some(stdin) = child.stdin.take() {
             drop(stdin);
-            log::debug!("Stdin closed successfully");
-        } else {
-            log::error!("Failed to get stdin handle");
-            return Err("Failed to get stdin handle".to_string());
+            log::debug!("Stdin closed for slash command mode");
         }
     }
 

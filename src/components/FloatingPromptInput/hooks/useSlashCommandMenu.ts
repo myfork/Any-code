@@ -2,6 +2,7 @@
  * useSlashCommandMenu Hook
  *
  * 管理斜杠命令自动补全菜单的状态和逻辑
+ * 支持 Claude 和 Gemini 引擎
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
@@ -10,6 +11,10 @@ import {
   BUILT_IN_SLASH_COMMANDS,
   filterSlashCommands,
 } from '../slashCommands';
+import { GEMINI_BUILT_IN_SLASH_COMMANDS } from '../geminiSlashCommands';
+
+/** 执行引擎类型 */
+type ExecutionEngine = 'claude' | 'gemini' | 'codex';
 
 interface UseSlashCommandMenuOptions {
   /** 当前输入的文本 */
@@ -20,6 +25,8 @@ interface UseSlashCommandMenuOptions {
   customCommands?: SlashCommand[];
   /** 是否禁用 */
   disabled?: boolean;
+  /** 执行引擎类型 (默认 claude) */
+  engine?: ExecutionEngine;
 }
 
 interface UseSlashCommandMenuReturn {
@@ -71,6 +78,7 @@ export function useSlashCommandMenu({
   onCommandSelect,
   customCommands = [],
   disabled = false,
+  engine = 'claude',
 }: UseSlashCommandMenuOptions): UseSlashCommandMenuReturn {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isManuallyClose, setIsManuallyClose] = useState(false);
@@ -81,10 +89,25 @@ export function useSlashCommandMenu({
     return detectSlashCommand(prompt);
   }, [prompt, disabled]);
 
+  // 根据引擎选择内置命令列表
+  const builtInCommands = useMemo(() => {
+    switch (engine) {
+      case 'gemini':
+        return GEMINI_BUILT_IN_SLASH_COMMANDS;
+      case 'claude':
+        return BUILT_IN_SLASH_COMMANDS;
+      case 'codex':
+        // Codex 暂不支持非交互式斜杠命令
+        return [];
+      default:
+        return BUILT_IN_SLASH_COMMANDS;
+    }
+  }, [engine]);
+
   // 合并命令列表
   const allCommands = useMemo(() => {
-    return [...BUILT_IN_SLASH_COMMANDS, ...customCommands];
-  }, [customCommands]);
+    return [...builtInCommands, ...customCommands];
+  }, [builtInCommands, customCommands]);
 
   // 过滤命令 (只显示支持非交互式的)
   const filteredCommands = useMemo(() => {

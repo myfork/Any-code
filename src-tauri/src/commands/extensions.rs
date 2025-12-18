@@ -2,7 +2,7 @@ use anyhow::Result;
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use super::claude::get_claude_dir;
@@ -607,4 +607,325 @@ description: {}
         description: Some(description),
         content: full_content,
     })
+}
+
+// ============================================================================
+// Custom Slash Commands
+// ============================================================================
+
+/// Represents a custom slash command file
+/// Commands are .md files in .claude/commands/ directories
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomSlashCommand {
+    /// Command name (file name without extension, or directory name)
+    pub name: String,
+    /// Full file path
+    pub path: String,
+    /// Scope: "project" or "user"
+    pub scope: String,
+    /// Description from frontmatter
+    pub description: Option<String>,
+    /// Argument hint from frontmatter (e.g., "<file>" or "[query]")
+    pub arg_hint: Option<String>,
+    /// File content (the command template)
+    pub content: String,
+}
+
+/// Parse frontmatter for slash commands
+/// Extracts description and argument-hint from YAML frontmatter
+fn parse_command_frontmatter(content: &str) -> (Option<String>, Option<String>) {
+    let lines: Vec<&str> = content.lines().collect();
+    let mut description = None;
+    let mut arg_hint = None;
+
+    // Check for YAML frontmatter
+    if lines.len() > 2 && lines[0] == "---" {
+        for line in lines.iter().skip(1) {
+            if *line == "---" {
+                // Found end of frontmatter
+                break;
+            }
+            if line.starts_with("description:") {
+                description = Some(line.trim_start_matches("description:").trim().to_string());
+            }
+            if line.starts_with("argument-hint:") {
+                arg_hint = Some(line.trim_start_matches("argument-hint:").trim().to_string());
+            }
+        }
+    }
+
+    // Fallback for description: use first non-empty, non-header line after frontmatter
+    if description.is_none() {
+        let mut in_frontmatter = false;
+        for line in &lines {
+            if *line == "---" {
+                in_frontmatter = !in_frontmatter;
+                continue;
+            }
+            if !in_frontmatter && !line.trim().is_empty() && !line.starts_with('#') {
+                description = Some(line.trim().to_string());
+                break;
+            }
+        }
+    }
+
+    (description, arg_hint)
+}
+
+/// List all custom slash commands in project and user directories
+/// Commands are .md files in .claude/commands/ following Claude Code convention
+#[tauri::command]
+pub async fn list_custom_slash_commands(
+    project_path: Option<String>,
+) -> Result<Vec<CustomSlashCommand>, String> {
+    info!("Listing custom slash commands");
+    let mut commands = Vec::new();
+
+    // User-level commands (~/.claude/commands/)
+    if let Ok(claude_dir) = get_claude_dir() {
+        let user_commands_dir = claude_dir.join("commands");
+        if user_commands_dir.exists() {
+            commands.extend(scan_commands_directory(&user_commands_dir, "user")?);
+        }
+    }
+
+    // Project-level commands (.claude/commands/)
+    if let Some(proj_path) = project_path {
+        let project_commands_dir = Path::new(&proj_path).join(".claude").join("commands");
+        if project_commands_dir.exists() {
+            commands.extend(scan_commands_directory(&project_commands_dir, "project")?);
+        }
+    }
+
+    info!("Found {} custom slash commands", commands.len());
+    Ok(commands)
+}
+
+/// Scan commands directory for .md files
+/// Handles both flat files (command.md) and nested directories (command/index.md or command/$ARGUMENTS.md)
+fn scan_commands_directory(dir: &Path, scope: &str) -> Result<Vec<CustomSlashCommand>, String> {
+    let mut commands = Vec::new();
+
+    for entry in WalkDir::new(dir)
+        .max_depth(2) // Support nested structure like command-name/index.md
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+
+        // Only process .md files
+        if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("md") {
+            continue;
+        }
+
+        // Determine command name based on file structure
+        // 1. Flat: commands/my-command.md -> "my-command"
+        // 2. Nested: commands/my-command/index.md -> "my-command"
+        // 3. With args: commands/my-command/$ARGUMENTS.md -> "my-command" (with arg hint)
+        let file_name = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+
+        let parent_name = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+
+        // Skip if file is directly in commands dir but named something weird
+        let name = if parent_name == "commands" || parent_name == dir.file_name().and_then(|s| s.to_str()).unwrap_or("") {
+            // Flat structure: commands/my-command.md
+            file_name.to_string()
+        } else if file_name == "index" || file_name.starts_with('$') {
+            // Nested structure: commands/my-command/index.md or commands/my-command/$ARGUMENTS.md
+            parent_name.to_string()
+        } else {
+            // Other nested file: commands/my-command/subcommand.md -> "my-command:subcommand"
+            format!("{}:{}", parent_name, file_name)
+        };
+
+        // Skip hidden files and special files
+        if name.starts_with('.') || name.is_empty() {
+            continue;
+        }
+
+        // Read file content
+        match fs::read_to_string(path) {
+            Ok(content) => {
+                let (description, arg_hint) = parse_command_frontmatter(&content);
+
+                commands.push(CustomSlashCommand {
+                    name,
+                    path: path.to_string_lossy().to_string(),
+                    scope: scope.to_string(),
+                    description,
+                    arg_hint,
+                    content,
+                });
+            }
+            Err(e) => {
+                debug!("Failed to read command file {:?}: {}", path, e);
+            }
+        }
+    }
+
+    Ok(commands)
+}
+
+/// Open commands directory in file explorer
+#[tauri::command]
+pub async fn open_commands_directory(project_path: Option<String>) -> Result<String, String> {
+    let commands_dir = if let Some(proj_path) = project_path {
+        Path::new(&proj_path).join(".claude").join("commands")
+    } else {
+        get_claude_dir()
+            .map_err(|e| e.to_string())?
+            .join("commands")
+    };
+
+    // Create directory if it doesn't exist
+    fs::create_dir_all(&commands_dir)
+        .map_err(|e| format!("Failed to create commands directory: {}", e))?;
+
+    Ok(commands_dir.to_string_lossy().to_string())
+}
+
+// ============================================================================
+// Gemini Custom Slash Commands
+// ============================================================================
+
+/// Get Gemini config directory (~/.gemini/)
+fn get_gemini_dir() -> Result<PathBuf, String> {
+    let home = dirs::home_dir().ok_or("Could not find home directory")?;
+    Ok(home.join(".gemini"))
+}
+
+/// Parse TOML frontmatter for Gemini slash commands
+/// Gemini uses TOML format with 'description' and 'prompt' fields
+fn parse_gemini_command_toml(content: &str) -> (Option<String>, Option<String>) {
+    // Try to parse as TOML
+    if let Ok(value) = content.parse::<toml::Value>() {
+        let description = value
+            .get("description")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        // Gemini doesn't have a standard arg_hint field, but we can look for patterns
+        let arg_hint = value
+            .get("argument-hint")
+            .or_else(|| value.get("argHint"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        return (description, arg_hint);
+    }
+
+    // Fallback: try to extract description from comments or first line
+    let first_line = content.lines().next().unwrap_or("");
+    if first_line.starts_with('#') {
+        return (Some(first_line.trim_start_matches('#').trim().to_string()), None);
+    }
+
+    (None, None)
+}
+
+/// List all custom slash commands for Gemini CLI
+/// Commands are .toml files in .gemini/commands/ directories
+#[tauri::command]
+pub async fn list_gemini_custom_slash_commands(
+    project_path: Option<String>,
+) -> Result<Vec<CustomSlashCommand>, String> {
+    info!("Listing Gemini custom slash commands");
+    let mut commands = Vec::new();
+
+    // User-level commands (~/.gemini/commands/)
+    if let Ok(gemini_dir) = get_gemini_dir() {
+        let user_commands_dir = gemini_dir.join("commands");
+        if user_commands_dir.exists() {
+            commands.extend(scan_gemini_commands_directory(&user_commands_dir, "user")?);
+        }
+    }
+
+    // Project-level commands (.gemini/commands/)
+    if let Some(proj_path) = project_path {
+        let project_commands_dir = Path::new(&proj_path).join(".gemini").join("commands");
+        if project_commands_dir.exists() {
+            commands.extend(scan_gemini_commands_directory(&project_commands_dir, "project")?);
+        }
+    }
+
+    info!("Found {} Gemini custom slash commands", commands.len());
+    Ok(commands)
+}
+
+/// Scan Gemini commands directory for .toml files
+/// Handles both flat files (command.toml) and nested directories (namespace/command.toml)
+fn scan_gemini_commands_directory(dir: &Path, scope: &str) -> Result<Vec<CustomSlashCommand>, String> {
+    let mut commands = Vec::new();
+
+    for entry in WalkDir::new(dir)
+        .max_depth(2) // Support namespaced commands like git/commit.toml -> git:commit
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+
+        // Only process .toml files
+        if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("toml") {
+            continue;
+        }
+
+        // Determine command name based on file structure
+        // 1. Flat: commands/my-command.toml -> "my-command"
+        // 2. Namespaced: commands/git/commit.toml -> "git:commit"
+        let file_name = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+
+        let parent_name = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+
+        let dir_name = dir.file_name().and_then(|s| s.to_str()).unwrap_or("");
+
+        // Build command name
+        let name = if parent_name == "commands" || parent_name == dir_name {
+            // Flat structure: commands/my-command.toml
+            file_name.to_string()
+        } else {
+            // Namespaced: commands/git/commit.toml -> "git:commit"
+            format!("{}:{}", parent_name, file_name)
+        };
+
+        // Skip hidden files and special files
+        if name.starts_with('.') || name.is_empty() {
+            continue;
+        }
+
+        // Read file content
+        match fs::read_to_string(path) {
+            Ok(content) => {
+                let (description, arg_hint) = parse_gemini_command_toml(&content);
+
+                commands.push(CustomSlashCommand {
+                    name,
+                    path: path.to_string_lossy().to_string(),
+                    scope: scope.to_string(),
+                    description,
+                    arg_hint,
+                    content,
+                });
+            }
+            Err(e) => {
+                debug!("Failed to read Gemini command file {:?}: {}", path, e);
+            }
+        }
+    }
+
+    Ok(commands)
 }

@@ -116,8 +116,9 @@ use commands::enhanced_hooks::{
     execute_pre_commit_review, test_hook_condition, trigger_hook_event,
 };
 use commands::extensions::{
-    create_skill, create_subagent, list_agent_skills, list_plugins, list_subagents,
-    open_agents_directory, open_plugins_directory, open_skills_directory, read_skill,
+    create_skill, create_subagent, list_agent_skills, list_custom_slash_commands,
+    list_gemini_custom_slash_commands, list_plugins, list_subagents, open_agents_directory,
+    open_commands_directory, open_plugins_directory, open_skills_directory, read_skill,
     read_subagent,
 };
 use commands::file_operations::{open_directory_in_explorer, open_file_with_default_app};
@@ -423,10 +424,12 @@ fn main() {
             get_prompt_list,
             get_unified_prompt_list,
             check_rewind_capabilities,
-            // Claude Extensions (Plugins, Subagents & Skills)
+            // Claude Extensions (Plugins, Subagents, Skills & Custom Commands)
             list_plugins,
             list_subagents,
             list_agent_skills,
+            list_custom_slash_commands,
+            list_gemini_custom_slash_commands,
             read_subagent,
             read_skill,
             create_subagent,
@@ -434,6 +437,7 @@ fn main() {
             open_plugins_directory,
             open_agents_directory,
             open_skills_directory,
+            open_commands_directory,
             // File Operations
             open_directory_in_explorer,
             open_file_with_default_app,
