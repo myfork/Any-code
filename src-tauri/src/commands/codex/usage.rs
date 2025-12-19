@@ -20,7 +20,7 @@ use super::config::get_codex_sessions_dir;
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct CodexSessionUsage {
     pub session_id: String,
     pub project_path: String,
@@ -35,7 +35,7 @@ pub struct CodexSessionUsage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct CodexModelUsage {
     pub model: String,
     pub total_cost: f64,
@@ -48,7 +48,7 @@ pub struct CodexModelUsage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct CodexDailyUsage {
     pub date: String,
     pub total_cost: f64,
@@ -57,7 +57,7 @@ pub struct CodexDailyUsage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct CodexProjectUsage {
     pub project_path: String,
     pub project_name: String,
@@ -68,7 +68,7 @@ pub struct CodexProjectUsage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct CodexUsageStats {
     pub total_cost: f64,
     pub total_tokens: u64,
@@ -208,6 +208,9 @@ fn parse_session_for_usage(path: &PathBuf) -> Option<CodexSessionUsage> {
     let mut model: String = "codex-mini-latest".to_string();
     let mut first_message: Option<String> = None;
     let mut last_timestamp: Option<String> = None;
+    let mut last_total_input_tokens: Option<u64> = None;
+    let mut last_total_output_tokens: Option<u64> = None;
+    let mut last_total_cached_tokens: Option<u64> = None;
 
     // Parse all lines to extract usage data
     for line_result in lines {
@@ -256,10 +259,82 @@ fn parse_session_for_usage(path: &PathBuf) -> Option<CodexSessionUsage> {
                             {
                                 total_output_tokens += output;
                             }
-                            if let Some(cached) =
-                                info.get("cached_tokens").and_then(|v| v.as_u64())
+                            if let Some(cached) = info
+                                .get("cached_input_tokens")
+                                .or_else(|| info.get("cached_tokens"))
+                                .and_then(|v| v.as_u64())
                             {
                                 total_cached_tokens += cached;
+                            }
+                        }
+                    }
+                }
+
+                // Extract usage from event_msg token_count events (current CLI format)
+                if event_type == "event_msg" {
+                    let payload_obj = event["payload"].as_object();
+                    let payload_type = payload_obj.and_then(|p| p.get("type")).and_then(|v| v.as_str());
+                    if payload_type == Some("token_count") {
+                        if let Some(info) = payload_obj.and_then(|p| p.get("info")).and_then(|v| v.as_object()) {
+                            let get_cached = |usage: &serde_json::Map<String, serde_json::Value>| {
+                                usage
+                                    .get("cached_input_tokens")
+                                    .or_else(|| usage.get("cached_tokens"))
+                                    .and_then(|v| v.as_u64())
+                                    .unwrap_or(0)
+                            };
+
+                            if let Some(last_usage) =
+                                info.get("last_token_usage").and_then(|v| v.as_object())
+                            {
+                                let input = last_usage
+                                    .get("input_tokens")
+                                    .and_then(|v| v.as_u64())
+                                    .unwrap_or(0);
+                                let output = last_usage
+                                    .get("output_tokens")
+                                    .and_then(|v| v.as_u64())
+                                    .unwrap_or(0);
+                                let cached = get_cached(last_usage);
+                                total_input_tokens += input;
+                                total_output_tokens += output;
+                                total_cached_tokens += cached;
+                            } else if let Some(total_usage) =
+                                info.get("total_token_usage").and_then(|v| v.as_object())
+                            {
+                                let input = total_usage
+                                    .get("input_tokens")
+                                    .and_then(|v| v.as_u64())
+                                    .unwrap_or(0);
+                                let output = total_usage
+                                    .get("output_tokens")
+                                    .and_then(|v| v.as_u64())
+                                    .unwrap_or(0);
+                                let cached = get_cached(total_usage);
+
+                                let delta_input = match last_total_input_tokens {
+                                    Some(prev) if input >= prev => input - prev,
+                                    Some(_) => input,
+                                    None => input,
+                                };
+                                let delta_output = match last_total_output_tokens {
+                                    Some(prev) if output >= prev => output - prev,
+                                    Some(_) => output,
+                                    None => output,
+                                };
+                                let delta_cached = match last_total_cached_tokens {
+                                    Some(prev) if cached >= prev => cached - prev,
+                                    Some(_) => cached,
+                                    None => cached,
+                                };
+
+                                total_input_tokens += delta_input;
+                                total_output_tokens += delta_output;
+                                total_cached_tokens += delta_cached;
+
+                                last_total_input_tokens = Some(input);
+                                last_total_output_tokens = Some(output);
+                                last_total_cached_tokens = Some(cached);
                             }
                         }
                     }
