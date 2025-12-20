@@ -1261,7 +1261,30 @@ export function usePromptExecution(config: UsePromptExecutionConfig): UsePromptE
           // Attempt to extract session_id on the fly (for the very first init)
           try {
             const msg = JSON.parse(event.payload) as ClaudeStreamMessage;
-            
+
+            // 🔒 CRITICAL FIX #1: 使用 session_id 验证消息是否属于当前会话
+            // 这是最重要的检查：如果消息包含 session_id，且我们已经有 claudeSessionId，
+            // 则只处理匹配的消息（解决同一项目下多个会话的串扰问题）
+            if (msg.session_id && claudeSessionId && msg.session_id !== claudeSessionId) {
+              // 消息来自不同会话，忽略
+              return;
+            }
+
+            // 🔒 CRITICAL FIX #2: 使用 cwd 字段作为备选验证（不同项目的情况）
+            // 多会话并发时，不同项目的消息会通过全局事件广播
+            // 通过检查 cwd 确保只处理属于当前项目的消息
+            if (msg.cwd && !claudeSessionId) {
+              // 只有在还没有 session_id 时才使用 cwd 检查
+              const normalizePath = (p: string) => p.replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+              const msgCwd = normalizePath(msg.cwd);
+              const currentPath = normalizePath(projectPath);
+
+              if (msgCwd !== currentPath) {
+                // 消息来自不同项目，忽略
+                return;
+              }
+            }
+
             // Always process the message if we haven't established a session yet
             // Or if it is the init message
             handleStreamMessage(event.payload, userInputTranslation || undefined);

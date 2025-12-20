@@ -43,9 +43,24 @@ export const useSessionSync = () => {
           pid?: number;
           run_id?: number;
         }>('claude-session-state', (event) => {
-          const { session_id, status } = event.payload;
-          // Find tab with this session (use ref to get latest tabs)
-          const tab = tabsRef.current.find(t => t.session?.id === session_id);
+          const { session_id, status, project_path } = event.payload;
+
+          // 🔒 CRITICAL FIX: 使用多种匹配策略查找标签页
+          // 1. 首先尝试通过 session_id 匹配（已有会话）
+          // 2. 然后尝试通过 project_path 匹配（新会话）
+          // 这解决了新会话启动时 tab.session?.id 尚未设置的问题
+          const normalizePath = (p: string) => p?.replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '') || '';
+
+          let tab = tabsRef.current.find(t => t.session?.id === session_id);
+
+          // 如果通过 session_id 找不到，尝试通过 project_path 匹配
+          if (!tab && project_path) {
+            const normalizedEventPath = normalizePath(project_path);
+            tab = tabsRef.current.find(t => {
+              const tabProjectPath = t.projectPath || t.session?.project_path;
+              return tabProjectPath && normalizePath(tabProjectPath) === normalizedEventPath;
+            });
+          }
 
           if (tab) {
             if (status === 'started') {
