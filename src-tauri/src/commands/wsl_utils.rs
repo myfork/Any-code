@@ -16,6 +16,9 @@ use std::os::windows::process::CommandExt;
 #[cfg(target_os = "windows")]
 use log::{debug, info, warn};
 
+#[cfg(target_os = "windows")]
+use crate::claude_binary::detect_binary_for_tool;
+
 // Windows CREATE_NO_WINDOW 标志
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -376,109 +379,25 @@ pub fn reset_wsl_config() {
 // ============================================================================
 
 /// 检测 Windows 原生 Codex 是否可用
+/// 使用统一的 detect_binary_for_tool 逻辑，支持 .exe/.cmd/.ps1/.bat 等多种格式
 #[cfg(target_os = "windows")]
 pub fn is_native_codex_available() -> bool {
-    // 检查常见的 Codex 安装路径
-    let paths_to_try = get_native_codex_paths();
+    // 使用统一的检测逻辑，与 check_codex_availability 保持一致
+    let (_env_info, detected) = detect_binary_for_tool("codex", "CODEX_PATH", "codex");
 
-    for path in &paths_to_try {
-        if std::path::Path::new(path).exists() {
-            debug!("[WSL] Found native Codex at: {}", path);
-            return true;
-        }
-    }
-
-    // 尝试运行 codex --version 看是否在 PATH 中
-    let mut cmd = Command::new("codex");
-    cmd.arg("--version");
-    cmd.creation_flags(CREATE_NO_WINDOW);
-
-    match cmd.output() {
-        Ok(output) if output.status.success() => {
-            debug!("[WSL] Native Codex found in PATH");
+    match detected {
+        Some(inst) => {
+            debug!(
+                "[WSL] Native Codex found: path={}, source={}, version={:?}",
+                inst.path, inst.source, inst.version
+            );
             true
         }
-        _ => {
-            debug!("[WSL] Native Codex not found");
+        None => {
+            debug!("[WSL] Native Codex not found via detect_binary_for_tool");
             false
         }
     }
-}
-
-/// 获取 Windows 原生 Codex 可能的安装路径
-#[cfg(target_os = "windows")]
-fn get_native_codex_paths() -> Vec<String> {
-    let mut paths = Vec::new();
-
-    // npm 全局安装路径 (APPDATA - 标准位置)
-    if let Ok(appdata) = std::env::var("APPDATA") {
-        paths.push(format!(r"{}\npm\codex.cmd", appdata));
-        paths.push(format!(r"{}\npm\codex", appdata));
-        // nvm-windows 安装的 Node.js 版本
-        let nvm_dir = format!(r"{}\nvm", appdata);
-        if let Ok(entries) = std::fs::read_dir(&nvm_dir) {
-            for entry in entries.flatten() {
-                if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
-                    let codex_path = entry.path().join("codex.cmd");
-                    if codex_path.exists() {
-                        paths.push(codex_path.to_string_lossy().to_string());
-                    }
-                }
-            }
-        }
-    }
-
-    // npm 全局安装路径 (LOCALAPPDATA - 某些配置下的位置)
-    if let Ok(localappdata) = std::env::var("LOCALAPPDATA") {
-        paths.push(format!(r"{}\npm\codex.cmd", localappdata));
-        paths.push(format!(r"{}\npm\codex", localappdata));
-        // pnpm 全局安装路径
-        paths.push(format!(r"{}\pnpm\codex.cmd", localappdata));
-        paths.push(format!(r"{}\pnpm\codex", localappdata));
-        // Yarn 全局安装路径
-        paths.push(format!(r"{}\Yarn\bin\codex.cmd", localappdata));
-        paths.push(format!(r"{}\Yarn\bin\codex", localappdata));
-    }
-
-    // 用户目录下的安装路径
-    if let Ok(userprofile) = std::env::var("USERPROFILE") {
-        // 自定义 npm 全局目录
-        paths.push(format!(r"{}\.npm-global\bin\codex.cmd", userprofile));
-        paths.push(format!(r"{}\.npm-global\bin\codex", userprofile));
-        paths.push(format!(r"{}\.npm-global\codex.cmd", userprofile));
-        // Volta 安装路径
-        paths.push(format!(r"{}\.volta\bin\codex.cmd", userprofile));
-        paths.push(format!(r"{}\.volta\bin\codex", userprofile));
-        // fnm (Fast Node Manager) 安装路径
-        paths.push(format!(r"{}\.fnm\aliases\default\codex.cmd", userprofile));
-        paths.push(format!(
-            r"{}\.fnm\node-versions\v*\installation\bin\codex.cmd",
-            userprofile
-        ));
-        // Scoop 安装路径
-        paths.push(format!(r"{}\scoop\shims\codex.cmd", userprofile));
-        paths.push(format!(
-            r"{}\scoop\apps\nodejs\current\codex.cmd",
-            userprofile
-        ));
-        // 本地 bin 目录
-        paths.push(format!(r"{}\.local\bin\codex.cmd", userprofile));
-        paths.push(format!(r"{}\.local\bin\codex", userprofile));
-    }
-
-    // Node.js 安装路径
-    if let Ok(programfiles) = std::env::var("ProgramFiles") {
-        paths.push(format!(r"{}\nodejs\codex.cmd", programfiles));
-        paths.push(format!(r"{}\nodejs\codex", programfiles));
-    }
-
-    // Chocolatey 安装路径
-    if let Ok(programdata) = std::env::var("ProgramData") {
-        paths.push(format!(r"{}\chocolatey\bin\codex.cmd", programdata));
-        paths.push(format!(r"{}\chocolatey\bin\codex", programdata));
-    }
-
-    paths
 }
 
 #[cfg(not(target_os = "windows"))]

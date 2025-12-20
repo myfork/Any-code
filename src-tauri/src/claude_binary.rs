@@ -874,12 +874,14 @@ pub fn detect_binary_for_tool(
     (runtime_env, best)
 }
 
-/// 获取当前平台下可执行名称的别名集合（含 .exe/.cmd）
+/// 获取当前平台下可执行名称的别名集合（含 .exe/.cmd/.ps1/.bat）
 fn get_tool_aliases(tool: &str, env: &RuntimeEnvironment) -> Vec<String> {
     if env.os == "windows" {
         vec![
             format!("{}.exe", tool),
             format!("{}.cmd", tool),
+            format!("{}.ps1", tool), // PowerShell shim (volta/nvm 等工具)
+            format!("{}.bat", tool), // 批处理文件
             tool.to_string(),
         ]
     } else {
