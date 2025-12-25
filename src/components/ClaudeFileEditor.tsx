@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Toast, ToastContainer } from "@/components/ui/toast";
 import { api, type ClaudeMdFile } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface ClaudeFileEditorProps {
   /**
@@ -36,20 +37,21 @@ export const ClaudeFileEditor: React.FC<ClaudeFileEditorProps> = ({
   onBack,
   className,
 }) => {
+  const { t } = useTranslation();
   const [content, setContent] = useState<string>("");
   const [originalContent, setOriginalContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-  
+
   const hasChanges = content !== originalContent;
-  
+
   // Load the file content on mount
   useEffect(() => {
     loadFileContent();
   }, [file.absolute_path]);
-  
+
   const loadFileContent = async () => {
     try {
       setLoading(true);
@@ -59,12 +61,12 @@ export const ClaudeFileEditor: React.FC<ClaudeFileEditorProps> = ({
       setOriginalContent(fileContent);
     } catch (err) {
       console.error("Failed to load file:", err);
-      setError("Failed to load CLAUDE.md file");
+      setError(t('fileEditor.fileLoadFailed'));
     } finally {
       setLoading(false);
     }
   };
-  
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -72,20 +74,20 @@ export const ClaudeFileEditor: React.FC<ClaudeFileEditorProps> = ({
       setToast(null);
       await api.saveClaudeMdFile(file.absolute_path, content);
       setOriginalContent(content);
-      setToast({ message: "File saved successfully", type: "success" });
+      setToast({ message: t('fileEditor.fileSavedSuccess'), type: "success" });
     } catch (err) {
       console.error("Failed to save file:", err);
-      setError("Failed to save CLAUDE.md file");
-      setToast({ message: "Failed to save file", type: "error" });
+      setError(t('fileEditor.fileSaveFailed'));
+      setToast({ message: t('fileEditor.fileSaveFailed'), type: "error" });
     } finally {
       setSaving(false);
     }
   };
-  
+
   const handleBack = () => {
     if (hasChanges) {
       const confirmLeave = window.confirm(
-        "You have unsaved changes. Are you sure you want to leave?"
+        t('fileEditor.unsavedChanges')
       );
       if (!confirmLeave) return;
     }

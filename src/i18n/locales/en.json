@@ -1262,7 +1262,13 @@
     "back": "Back",
     "saving": "Saving...",
     "save": "Save",
-    "unsavedChanges": "You have unsaved changes. Are you sure you want to leave?"
+    "unsavedChanges": "You have unsaved changes. Are you sure you want to leave?",
+    "fileSavedSuccess": "File saved successfully",
+    "fileSaveFailed": "Failed to save file",
+    "fileLoadFailed": "Failed to load file",
+    "claudeMdSaveSuccess": "CLAUDE.md saved successfully",
+    "claudeMdSaveFailed": "Failed to save CLAUDE.md",
+    "claudeMdLoadFailed": "Failed to load CLAUDE.md file"
   },
   "filePicker": {
     "clickToEnterDoubleToSelect": "Click to enter • Double-click to select",

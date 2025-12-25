@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Toast, ToastContainer } from "@/components/ui/toast";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface GeminiMarkdownEditorProps {
   /**
@@ -28,6 +29,7 @@ export const GeminiMarkdownEditor: React.FC<GeminiMarkdownEditorProps> = ({
   onBack,
   className,
 }) => {
+  const { t } = useTranslation();
   const [content, setContent] = useState<string>("");
   const [originalContent, setOriginalContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -52,7 +54,7 @@ export const GeminiMarkdownEditor: React.FC<GeminiMarkdownEditorProps> = ({
     } catch (err) {
       console.error("Failed to load Gemini system prompt:", err);
       const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(`无法加载 GEMINI.md 文件: ${errorMessage}`);
+      setError(t('geminiEditor.loadFailed', { error: errorMessage }));
     } finally {
       setLoading(false);
     }
@@ -65,12 +67,12 @@ export const GeminiMarkdownEditor: React.FC<GeminiMarkdownEditorProps> = ({
       setToast(null);
       await api.saveGeminiSystemPrompt(content);
       setOriginalContent(content);
-      setToast({ message: "GEMINI.md 保存成功", type: "success" });
+      setToast({ message: t('geminiEditor.saveSuccess'), type: "success" });
     } catch (err) {
       console.error("Failed to save Gemini system prompt:", err);
       const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(`保存失败: ${errorMessage}`);
-      setToast({ message: "保存 GEMINI.md 失败", type: "error" });
+      setError(t('geminiEditor.saveFailed', { error: errorMessage }));
+      setToast({ message: t('geminiEditor.saveFailedToast'), type: "error" });
     } finally {
       setSaving(false);
     }
@@ -79,7 +81,7 @@ export const GeminiMarkdownEditor: React.FC<GeminiMarkdownEditorProps> = ({
   const handleBack = () => {
     if (hasChanges) {
       const confirmLeave = window.confirm(
-        "您有未保存的更改。确定要离开吗？"
+        t('geminiEditor.unsavedChangesConfirm')
       );
       if (!confirmLeave) return;
     }

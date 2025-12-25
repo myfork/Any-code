@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Toast, ToastContainer } from "@/components/ui/toast";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface CodexMarkdownEditorProps {
   /**
@@ -28,6 +29,7 @@ export const CodexMarkdownEditor: React.FC<CodexMarkdownEditorProps> = ({
   onBack,
   className,
 }) => {
+  const { t } = useTranslation();
   const [content, setContent] = useState<string>("");
   const [originalContent, setOriginalContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -58,9 +60,9 @@ export const CodexMarkdownEditor: React.FC<CodexMarkdownEditorProps> = ({
       // Check if error is about Codex not being installed
       if (errorMessage.includes("Codex 目录") || errorMessage.includes("Codex CLI")) {
         setCodexNotInstalled(true);
-        setError("未找到 Codex 目录。请确保已安装 Codex CLI。");
+        setError(t('codexEditor.codexDirNotFound'));
       } else {
-        setError("无法加载 AGENTS.md 文件");
+        setError(t('codexEditor.cannotLoadAgents'));
       }
     } finally {
       setLoading(false);
@@ -74,12 +76,12 @@ export const CodexMarkdownEditor: React.FC<CodexMarkdownEditorProps> = ({
       setToast(null);
       await api.saveCodexSystemPrompt(content);
       setOriginalContent(content);
-      setToast({ message: "AGENTS.md 保存成功", type: "success" });
+      setToast({ message: t('codexEditor.agentsSaveSuccess'), type: "success" });
     } catch (err) {
       console.error("Failed to save Codex system prompt:", err);
       const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(`保存失败: ${errorMessage}`);
-      setToast({ message: "保存 AGENTS.md 失败", type: "error" });
+      setError(`${t('codexEditor.agentsSaveFailed')}: ${errorMessage}`);
+      setToast({ message: t('codexEditor.agentsSaveFailed'), type: "error" });
     } finally {
       setSaving(false);
     }
@@ -88,7 +90,7 @@ export const CodexMarkdownEditor: React.FC<CodexMarkdownEditorProps> = ({
   const handleBack = () => {
     if (hasChanges) {
       const confirmLeave = window.confirm(
-        "您有未保存的更改。确定要离开吗？"
+        t('codexEditor.unsavedChanges')
       );
       if (!confirmLeave) return;
     }

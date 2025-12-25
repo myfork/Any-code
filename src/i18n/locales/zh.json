@@ -1294,7 +1294,13 @@
     "back": "返回",
     "saving": "保存中...",
     "save": "保存",
-    "unsavedChanges": "您有未保存的更改。确定要离开吗？"
+    "unsavedChanges": "您有未保存的更改。确定要离开吗？",
+    "fileSavedSuccess": "文件保存成功",
+    "fileSaveFailed": "保存文件失败",
+    "fileLoadFailed": "加载文件失败",
+    "claudeMdSaveSuccess": "CLAUDE.md 保存成功",
+    "claudeMdSaveFailed": "保存 CLAUDE.md 失败",
+    "claudeMdLoadFailed": "加载 CLAUDE.md 文件失败"
   },
   "filePicker": {
     "clickToEnterDoubleToSelect": "单击进入 • 双击选中",

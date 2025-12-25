@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Toast, ToastContainer } from "@/components/ui/toast";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface MarkdownEditorProps {
   /**
@@ -28,20 +29,21 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   onBack,
   className,
 }) => {
+  const { t } = useTranslation();
   const [content, setContent] = useState<string>("");
   const [originalContent, setOriginalContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-  
+
   const hasChanges = content !== originalContent;
-  
+
   // Load the system prompt on mount
   useEffect(() => {
     loadSystemPrompt();
   }, []);
-  
+
   const loadSystemPrompt = async () => {
     try {
       setLoading(true);
@@ -51,12 +53,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       setOriginalContent(prompt);
     } catch (err) {
       console.error("Failed to load system prompt:", err);
-      setError("Failed to load CLAUDE.md file");
+      setError(t('fileEditor.claudeMdLoadFailed'));
     } finally {
       setLoading(false);
     }
   };
-  
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -64,20 +66,20 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       setToast(null);
       await api.saveSystemPrompt(content);
       setOriginalContent(content);
-      setToast({ message: "CLAUDE.md saved successfully", type: "success" });
+      setToast({ message: t('fileEditor.claudeMdSaveSuccess'), type: "success" });
     } catch (err) {
       console.error("Failed to save system prompt:", err);
-      setError("Failed to save CLAUDE.md file");
-      setToast({ message: "Failed to save CLAUDE.md", type: "error" });
+      setError(t('fileEditor.claudeMdLoadFailed'));
+      setToast({ message: t('fileEditor.claudeMdSaveFailed'), type: "error" });
     } finally {
       setSaving(false);
     }
   };
-  
+
   const handleBack = () => {
     if (hasChanges) {
       const confirmLeave = window.confirm(
-        "You have unsaved changes. Are you sure you want to leave?"
+        t('fileEditor.unsavedChanges')
       );
       if (!confirmLeave) return;
     }
